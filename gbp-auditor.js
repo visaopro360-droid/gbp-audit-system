@@ -33,15 +33,30 @@ function auditGBP(gbpData) {
     audit.gaps.push('❌ CRÍTICO: Telefone não configurado (reduz contatos em 40%)');
   }
 
-  // 4. WEBSITE (importante para conversão)
-  if (gbpData.website && gbpData.website.startsWith('http')) {
+// 4. WEBSITE (importante para conversão)
+if (gbpData.website) {
+  const website = gbpData.website.toLowerCase();
+  const isInstagram = website.includes('instagram.com') || 
+                      website.includes('ig.com') ||
+                      website.includes('insta');
+  
+  if (isInstagram) {
+    // 🚨 INSTAGRAM COMO WEBSITE
+    audit.scores.website = 0;
+    audit.gaps.push('🚨 CRÍTICO: Instagram cadastrado como website - Reduz visibilidade em 40%');
+    audit.recommendations.push('website');
+  } else if (website.startsWith('http')) {
+    // Website real encontrado
     audit.scores.website = 100;
   } else {
     audit.scores.website = 0;
-    audit.gaps.push('Website não vinculado (você pode oferecer criar um!)');
-    audit.recommendations.push('website');
+    audit.gaps.push('Website URL inválida');
   }
-
+} else {
+  audit.scores.website = 0;
+  audit.gaps.push('Website não vinculado (você pode oferecer criar um!)');
+  audit.recommendations.push('website');
+}
   // 5. HORÁRIOS (muito importante - 35% menos cliques sem isso)
   const hasHours = gbpData.opening_hours && 
                    gbpData.opening_hours.weekday_text && 
@@ -141,5 +156,23 @@ function auditGBP(gbpData) {
 
   return audit;
 }
+// ✅ Detecta Instagram como website
+function detectInstagramAsWebsite(gbpData) {
+  if (!gbpData.website) {
+    return { detected: false, hasWebsite: false };
+  }
+  
+  const website = gbpData.website.toLowerCase();
+  const isInstagram = website.includes('instagram.com') || 
+                      website.includes('ig.com') ||
+                      website.includes('insta');
+  
+  return { 
+    detected: isInstagram, 
+    hasWebsite: !isInstagram,
+    url: gbpData.website 
+  };
+}
+
 
 module.exports = { auditGBP };
