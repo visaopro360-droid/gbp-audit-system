@@ -4,7 +4,7 @@
   "description": "Sistema automático de auditoria e relatório do Google Business Profile com integração Make.com",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node server.js",
     "test": "echo \"Configure seus dados e execute: npm start\"",
     "dev": "node -r dotenv/config index.js"
   },
