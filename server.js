@@ -1,5 +1,5 @@
 // server.js
-// Servidor Express - GBP Audit System (VERSÃO FINAL COM INTEGRAÇÃO COMPLETA)
+// Servidor Express - GBP Audit System (VERSÃO FINAL COM INTEGRAÇÃO COMPLETA + EMAIL)
 
 const express = require('express');
 const cors = require('cors');
@@ -8,6 +8,7 @@ const { auditGBP } = require('./gbp-auditor');
 const { extractGBPData } = require('./gbp-extractor');
 const { auditGBPAdvanced } = require('./gbp-advanced-audit');
 const { generateFinalProfessionalReport } = require('./gbp-final-report-generator');
+const { sendReportEmail } = require('./email-config');
 
 dotenv.config();
 
@@ -30,7 +31,7 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
   res.json({
     status: '✅ GBP Audit Server OK',
-    version: '2.0.0 - PROFESSIONAL',
+    version: '2.0.0 - PROFESSIONAL WITH EMAIL',
     endpoints: {
       health: 'GET /',
       audit: 'POST /api/gbp-audit',
@@ -165,7 +166,7 @@ app.post('/api/gbp-audit-advanced', async (req, res) => {
 });
 
 // ============================================
-// ROTA: Relatório Profissional Completo (30+ páginas)
+// ROTA: Relatório Profissional Completo (30+ páginas) + EMAIL
 // ============================================
 app.post('/api/gbp-report-professional', async (req, res) => {
   try {
@@ -206,6 +207,23 @@ app.post('/api/gbp-report-professional', async (req, res) => {
 
     console.log(`✅ Relatório profissional gerado (30+ páginas)`);
 
+    // 4. NOVO: Enviar email automaticamente se clientEmail foi fornecido
+    let emailStatus = null;
+    if (clientEmail) {
+      console.log(`📧 Enviando relatório para: ${clientEmail}`);
+      emailStatus = await sendReportEmail(
+        clientEmail,
+        gbpData.name,
+        htmlReport
+      );
+      
+      if (emailStatus) {
+        console.log(`✅ Email enviado com sucesso`);
+      } else {
+        console.log(`⚠️ Falha ao enviar email, mas relatório foi gerado`);
+      }
+    }
+
     res.json({
       success: true,
       businessName: gbpData.name,
@@ -214,6 +232,7 @@ app.post('/api/gbp-report-professional', async (req, res) => {
       classification: auditResult.classification,
       htmlReport: htmlReport,
       clientEmail: clientEmail || null,
+      emailSent: emailStatus || false,
       type: 'professional',
       pages: '30+',
       generatedAt: new Date().toISOString()
@@ -263,7 +282,7 @@ app.post('/api/save-report', (req, res) => {
 // ============================================
 // ROTA: Enviar Email (Para Make.com)
 // ============================================
-app.post('/api/send-email', (req, res) => {
+app.post('/api/send-email', async (req, res) => {
   try {
     const { to, subject, htmlContent } = req.body;
 
@@ -276,11 +295,15 @@ app.post('/api/send-email', (req, res) => {
     console.log(`📧 Email preparado para: ${to}`);
     console.log(`📌 Assunto: ${subject}`);
 
+    // Enviar email usando Nodemailer
+    const emailSent = await sendReportEmail(to, subject, htmlContent);
+
     res.json({
-      success: true,
-      message: 'Email pronto para envio',
+      success: emailSent,
+      message: emailSent ? 'Email enviado com sucesso' : 'Falha ao enviar email',
       to: to,
-      subject: subject
+      subject: subject,
+      emailSent: emailSent
     });
 
   } catch (error) {
@@ -317,6 +340,7 @@ app.listen(PORT, () => {
 ╔════════════════════════════════════════════════════════╗
 ║                                                        ║
 ║     🚀 GBP AUDIT SERVER v2.0 - PROFESSIONAL          ║
+║            WITH EMAIL INTEGRATION                     ║
 ║                                                        ║
 ║     Porta: ${PORT}                                          ║
 ║     Ambiente: ${process.env.NODE_ENV || 'development'}     ║
@@ -325,8 +349,10 @@ app.listen(PORT, () => {
 ║     ✅ Basic:   POST http://localhost:${PORT}/api/gbp-audit ║
 ║     ✅ Advanced: POST /api/gbp-audit-advanced          ║
 ║     ✅ Pro:     POST /api/gbp-report-professional     ║
+║     ✅ Email:   POST /api/send-email                  ║
 ║                                                        ║
-║     Endpoints: 4 | Fatores: 25+ | Relatório: 30pgs   ║
+║     Endpoints: 5 | Fatores: 25+ | Relatório: 30pgs   ║
+║     Email: ✅ Nodemailer + Gmail                       ║
 ║                                                        ║
 ╚════════════════════════════════════════════════════════╝
   `);
